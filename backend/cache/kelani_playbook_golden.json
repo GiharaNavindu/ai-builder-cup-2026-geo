@@ -1,0 +1,32 @@
+{
+  "risk_level": "CRITICAL",
+  "executive_summary": "Severe flash flooding across 18.4 sq km in the Kelani Basin driven by 312.5 mm of 72h rainfall (+240% anomaly). 27.6 km of road network is submerged, critically severing the AB10 Kaduwela Bridge approach and threatening the Biyagama 132kV substation.",
+  "visual_sar_verification": "Sentinel-1 VV backscatter decrease (>3 dB) confirms widespread floodplain inundation along the northern bank of the Kelani River, extending 850m across the AB10 approach.",
+  "prioritized_chokepoints": [
+    {
+      "asset_id": "OSM-WAY-109482",
+      "asset_name": "Kaduwela Bridge Approach (AB10 Highway)",
+      "coordinates": [6.9358, 79.9842],
+      "vulnerability_reason": "850m road segment submerged; cuts off primary medical route to Biyagama Hospital.",
+      "cited_metric": "submerged_length_m: 850"
+    }
+  ],
+  "supply_reroutes": [
+    {
+      "blocked_corridor": "AB10 Kaduwela Bridge Approach",
+      "recommended_bypass": "Southern Expressway (E02) via Kothalawala Interchange to Delgoda High-Ground Link",
+      "estimated_delay_mins": 18,
+      "target_fleet": "Medical Oxygen & Emergency Food Trucks"
+    }
+  ],
+  "pubsub_dispatches": [
+    {
+      "topic": "infra-grid-substation-alerts",
+      "recipient": "CEB Grid Control / Biyagama 132kV Ops",
+      "urgency": "IMMEDIATE_0_2H",
+      "directive": "Deploy perimeter flood barriers and pre-stage mobile diesel generator at Biyagama Divisional Hospital (flood edge at 115m)."
+    }
+  ],
+  "confidence_score": 0.91,
+  "limitations": "Sentinel-1 SAR resolution is 10m; urban radar shadow in dense building clusters requires local gauge verification."
+}

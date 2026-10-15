@@ -1,0 +1,50 @@
+{
+  "region_id": "LK-KELANI-BIYAGAMA",
+  "region_name": "Kaduwela – Biyagama Corridor (Kelani River Basin)",
+  "event_dates": {
+    "baseline_window": "2024-05-01 to 2024-05-20",
+    "flood_window": "2024-06-01 to 2024-06-05"
+  },
+  "satellite_metrics": {
+    "flooded_area_sq_km": 18.4,
+    "chirps_72h_rainfall_mm": 312.5,
+    "rainfall_anomaly_pct": 240.0,
+    "exposed_population": 42800
+  },
+  "bigquery_gis_impacts": {
+    "submerged_road_km": 27.6,
+    "chokepoints": [
+      {
+        "asset_id": "OSM-WAY-109482",
+        "name": "Kaduwela Bridge Approach (AB10 Highway)",
+        "asset_type": "primary_highway",
+        "coordinates": [6.9358, 79.9842],
+        "submerged_length_m": 850.0,
+        "distance_to_flood_m": 0.0,
+        "cascading_impact": "Severs primary ambulance & medical supply corridor to Biyagama Divisional Hospital"
+      },
+      {
+        "asset_id": "OSM-NODE-883921",
+        "name": "Biyagama 132kV Grid Substation Perimeter",
+        "asset_type": "power_substation",
+        "coordinates": [6.9482, 79.9915],
+        "submerged_length_m": null,
+        "distance_to_flood_m": 115.0,
+        "cascading_impact": "Inundation threatens power supply to 3 water pumping stations and Biyagama Hospital"
+      }
+    ],
+    "hospitals_at_risk": [
+      {
+        "name": "Biyagama Divisional Hospital",
+        "coordinates": [6.9431, 80.0012],
+        "severed_access_routes": 2,
+        "remaining_viable_routes": 1
+      }
+    ]
+  },
+  "visual_artifacts": {
+    "before_sar_png_uri": "gs://climate-copilot-assets/kelani_before_sar.png",
+    "after_sar_png_uri": "gs://climate-copilot-assets/kelani_after_sar.png",
+    "ee_flood_tile_url": "https://earthengine.googleapis.com/v1alpha/projects/climate-copilot-2026/maps/kelani_flood_tiles/{z}/{x}/{y}"
+  }
+}
