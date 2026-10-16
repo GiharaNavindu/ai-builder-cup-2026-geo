@@ -32,7 +32,7 @@ def init_earth_engine(
             credentials = ee.ServiceAccountCredentials(service_account, key_file)
             ee.Initialize(credentials, project=project)
         else:
-            project_id = project or os.getenv("EE_PROJECT", "climate-copilot-2026")
+            project_id = project or os.getenv("EE_PROJECT", "hack-506414")
             ee.Initialize(project=project_id)
         return True
     except Exception as exc:

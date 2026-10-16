@@ -54,7 +54,7 @@ def run_scenario(scenario_name: str = "today", export_to_frontend: bool = True):
 
     # 1. Initialize Earth Engine
     print("\n[Step 1] Connecting to Google Earth Engine...")
-    has_ee = init_earth_engine()
+    has_ee = init_earth_engine(project="hack-506414")
 
     if has_ee:
         try:

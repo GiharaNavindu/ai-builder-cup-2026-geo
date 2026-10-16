@@ -39,7 +39,7 @@ def test_1_contracts():
 
 def test_2_earth_engine():
     print("\n--- [TEST 2] Google Earth Engine Authentication & SAR Pipeline ---")
-    is_authenticated = init_earth_engine()
+    is_authenticated = init_earth_engine(project="hack-506414")
     if not is_authenticated:
         print("  [NOTE] Earth Engine not authenticated yet via 'earthengine authenticate'.")
         print("         The pipeline will safely use cached golden coordinates for offline runs.")

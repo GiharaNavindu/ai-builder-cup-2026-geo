@@ -102,7 +102,7 @@ def run_bigquery_spatial_analysis(
     dataset_id: str = "climate_gis"
 ) -> BigQueryGisImpacts:
     """Execute spatial joins via BigQuery GIS, or fallback to local Shapely analysis."""
-    proj = project_id or os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("BIGQUERY_PROJECT"))
+    proj = project_id or os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("BIGQUERY_PROJECT", "hack-506414"))
 
     if proj and os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
         try:
