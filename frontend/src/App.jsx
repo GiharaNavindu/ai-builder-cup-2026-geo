@@ -96,7 +96,7 @@ export default function App() {
               <ShieldAlert size={20} color="#f43f5e" />
               AI Mitigation Playbook
             </div>
-            <span className="risk-badge-critical">
+            <span className={KELANI_PLAYBOOK.risk_level === "CRITICAL" ? "risk-badge-critical" : ""} style={KELANI_PLAYBOOK.risk_level !== "CRITICAL" ? { color: "#10b981", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.4)", padding: "3px 10px", borderRadius: "20px", fontFamily: "var(--font-mono)", fontSize: "0.72rem", fontWeight: "700" } : {}}>
               {KELANI_PLAYBOOK.risk_level}
             </span>
           </div>
@@ -130,49 +130,49 @@ export default function App() {
               Prioritized Chokepoints (Click to Pan Map)
             </div>
 
-            {KELANI_PLAYBOOK.prioritized_chokepoints.map((cp, idx) => (
-              <div
-                key={idx}
-                className="chokepoint-card"
-                onClick={() => handleCiteClick(cp.coordinates, cp.asset_id)}
-                title="Click to pan Leaflet map to this location"
-              >
-                <div className="chokepoint-title">
-                  <span>{cp.asset_name}</span>
-                  <span className="chokepoint-metric-tag">[Cite: {cp.cited_metric}]</span>
+            {KELANI_PLAYBOOK.prioritized_chokepoints && KELANI_PLAYBOOK.prioritized_chokepoints.length > 0 ? (
+              KELANI_PLAYBOOK.prioritized_chokepoints.map((cp, idx) => (
+                <div
+                  key={idx}
+                  className="chokepoint-card"
+                  onClick={() => handleCiteClick(cp.coordinates, cp.asset_id)}
+                  title="Click to pan Leaflet map to this location"
+                >
+                  <div className="chokepoint-title">
+                    <span>{cp.asset_name}</span>
+                    <span className="chokepoint-metric-tag">[Cite: {cp.cited_metric}]</span>
+                  </div>
+                  <div className="chokepoint-desc">{cp.vulnerability_reason}</div>
                 </div>
-                <div className="chokepoint-desc">{cp.vulnerability_reason}</div>
+              ))
+            ) : (
+              <div className="chokepoint-card" style={{ cursor: "default", borderColor: "rgba(16, 185, 129, 0.3)" }}>
+                <div className="chokepoint-title" style={{ color: "#10b981" }}>
+                  <span>No Critical Chokepoints Detected</span>
+                </div>
+                <div className="chokepoint-desc">
+                  All monitored bridges and highway segments report clear passage with zero water intrusion.
+                </div>
               </div>
-            ))}
-
-            {/* Substation Proximity Alert */}
-            <div
-              className="chokepoint-card"
-              onClick={() => handleCiteClick([6.9482, 79.9915], "OSM-NODE-883921")}
-              title="Click to pan Leaflet map to this location"
-            >
-              <div className="chokepoint-title">
-                <span>Biyagama 132kV Grid Substation</span>
-                <span className="chokepoint-metric-tag" style={{ background: "rgba(245, 158, 11, 0.2)", color: "#f59e0b" }}>
-                  [Cite: distance_to_flood_m: 115]
-                </span>
-              </div>
-              <div className="chokepoint-desc">
-                Inundation threatens power supply to 3 water pumping stations and hospital.
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Supply Reroutes */}
-          <div className="reroute-box">
+          <div className="reroute-box" style={KELANI_PLAYBOOK.supply_reroutes?.length ? {} : { borderColor: "rgba(16, 185, 129, 0.3)", background: "rgba(16, 185, 129, 0.05)" }}>
             <div className="reroute-title">
               <Navigation size={15} style={{ display: "inline", marginRight: "6px" }} />
-              Recommended Bypass Route
+              {KELANI_PLAYBOOK.supply_reroutes?.length ? "Recommended Bypass Route" : "Logistics Corridors Status"}
             </div>
             <p className="reroute-text">
-              <strong>{KELANI_PLAYBOOK.supply_reroutes[0].recommended_bypass}</strong>
-              <br />
-              Target: {KELANI_PLAYBOOK.supply_reroutes[0].target_fleet} • Delay: +{KELANI_PLAYBOOK.supply_reroutes[0].estimated_delay_mins} mins
+              {KELANI_PLAYBOOK.supply_reroutes && KELANI_PLAYBOOK.supply_reroutes.length > 0 ? (
+                <>
+                  <strong>{KELANI_PLAYBOOK.supply_reroutes[0].recommended_bypass}</strong>
+                  <br />
+                  Target: {KELANI_PLAYBOOK.supply_reroutes[0].target_fleet} • Delay: +{KELANI_PLAYBOOK.supply_reroutes[0].estimated_delay_mins} mins
+                </>
+              ) : (
+                <span>All primary highway arteries and emergency logistics corridors are operating with zero flood delays.</span>
+              )}
             </p>
           </div>
 
@@ -182,14 +182,21 @@ export default function App() {
               <span>CLOUD PUB/SUB SSE DISPATCH STREAM</span>
               <span style={{ color: "#10b981" }}>LIVE</span>
             </div>
-            {KELANI_PLAYBOOK.pubsub_dispatches.map((disp, i) => (
-              <div key={i} className="terminal-line">
-                <span className="terminal-time">[10:42:01 UTC]</span>
-                <span>
-                  <strong>{disp.topic}</strong> → {disp.recipient}: "{disp.directive.slice(0, 48)}..."
-                </span>
+            {KELANI_PLAYBOOK.pubsub_dispatches && KELANI_PLAYBOOK.pubsub_dispatches.length > 0 ? (
+              KELANI_PLAYBOOK.pubsub_dispatches.map((disp, i) => (
+                <div key={i} className="terminal-line">
+                  <span className="terminal-time">[10:42:01 UTC]</span>
+                  <span>
+                    <strong>{disp.topic}</strong> → {disp.recipient}: "{disp.directive.slice(0, 48)}..."
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="terminal-line" style={{ color: "#10b981" }}>
+                <span className="terminal-time">[NOMINAL]</span>
+                <span>Zero critical dispatches active. System monitoring radar feeds.</span>
               </div>
-            ))}
+            )}
           </div>
         </aside>
       </main>
