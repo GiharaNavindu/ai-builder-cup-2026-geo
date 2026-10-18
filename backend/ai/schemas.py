@@ -2,6 +2,10 @@
 
 Contract 1: TelemetryPayload (Produced by Geospatial Telemetry Engine: Kavindu)
 Contract 2: PlaybookResponse (Produced by AI Multimodal / Agentic Pipeline: Kavindu & Gihara)
+
+Includes multi-hazard disaster modeling (Flood, Landslide, Bridge Collapse)
+and Humanitarian Logistics grounded in official UNDP / DMC reports for
+Cyclone Ditwah (November–December 2025).
 """
 
 from typing import List, Optional
@@ -15,11 +19,11 @@ from pydantic import BaseModel, Field
 class EventDates(BaseModel):
     baseline_window: str = Field(
         ...,
-        description="Date range for SAR baseline imagery (e.g. 2024-05-01 to 2024-05-20)"
+        description="Date range for SAR baseline imagery (e.g. 2025-11-01 to 2025-11-20)"
     )
     flood_window: str = Field(
         ...,
-        description="Date range for SAR flood event imagery (e.g. 2024-06-01 to 2024-06-05)"
+        description="Date range for SAR flood event imagery (e.g. 2025-11-28 to 2025-12-04)"
     )
 
 
@@ -40,6 +44,41 @@ class SatelliteMetrics(BaseModel):
         ...,
         description="Estimated population exposed within flood boundary via WorldPop"
     )
+    landslide_high_risk_sq_km: float = Field(
+        default=0.0,
+        description="Estimated area in square kilometers under severe landslide hazard (SRTM slope > 15 deg + CHIRPS rainfall > 300mm)"
+    )
+    exposed_buildings_count: int = Field(
+        default=0,
+        description="Estimated residential and commercial structures inundated or at direct disaster risk"
+    )
+    damaged_bridges_count: int = Field(
+        default=0,
+        description="Number of critical roadway and railway bridges compromised or collapsed"
+    )
+
+
+class HumanitarianLogistics(BaseModel):
+    active_relief_camps: int = Field(
+        ...,
+        description="Active temporary displacement camps / safe centers"
+    )
+    displaced_persons: int = Field(
+        ...,
+        description="Total internally displaced persons (IDPs)"
+    )
+    daily_drinking_water_liters: int = Field(
+        ...,
+        description="Sphere Minimum Humanitarian Standard: displaced * 15L/person/day"
+    )
+    medical_trauma_kits_required: int = Field(
+        ...,
+        description="Immediate emergency medical and surgical trauma kits required"
+    )
+    estimated_debris_cubic_meters: int = Field(
+        ...,
+        description="Estimated disaster debris volume (UNDP Ditwah formula: 80m3 per destroyed + 10m3 per damaged structure)"
+    )
 
 
 class Chokepoint(BaseModel):
@@ -53,7 +92,7 @@ class Chokepoint(BaseModel):
     )
     asset_type: str = Field(
         ...,
-        description="Type of asset (e.g. primary_highway, power_substation, bridge)"
+        description="Type of asset (e.g. primary_highway, power_substation, bridge, water_treatment_plant)"
     )
     coordinates: List[float] = Field(
         ...,
@@ -71,6 +110,10 @@ class Chokepoint(BaseModel):
         ...,
         description="Impact assessment on critical connectivity or services"
     )
+    hazard_type: str = Field(
+        default="FLOOD_INUNDATION",
+        description="Hazard type affecting asset: 'FLOOD_INUNDATION', 'LANDSLIDE_BLOCKAGE', or 'BRIDGE_COLLAPSE'"
+    )
 
 
 class HospitalAtRisk(BaseModel):
@@ -84,11 +127,11 @@ class HospitalAtRisk(BaseModel):
     )
     severed_access_routes: int = Field(
         ...,
-        description="Number of access roads currently inundated"
+        description="Number of access roads currently inundated or blocked"
     )
     remaining_viable_routes: int = Field(
         ...,
-        description="Number of remaining viable, unflooded routes"
+        description="Number of remaining viable, unflooded routes (0 indicates airlift required)"
     )
 
 
@@ -125,7 +168,7 @@ class BigQueryGisImpacts(BaseModel):
 class TelemetryPayload(BaseModel):
     region_id: str = Field(
         ...,
-        description="Unique region code, e.g. LK-KELANI-BIYAGAMA"
+        description="Unique region code, e.g. LK-CENTRAL-KANDY or LK-NATIONAL-DITWAH"
     )
     region_name: str = Field(
         ...,
@@ -135,6 +178,10 @@ class TelemetryPayload(BaseModel):
     satellite_metrics: SatelliteMetrics
     bigquery_gis_impacts: BigQueryGisImpacts
     visual_artifacts: VisualArtifacts
+    humanitarian_logistics: Optional[HumanitarianLogistics] = Field(
+        default=None,
+        description="Humanitarian relief logistics and Sphere standard requirements"
+    )
 
 
 # ============================================================================
