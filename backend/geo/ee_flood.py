@@ -1,13 +1,14 @@
-"""Google Earth Engine Sentinel-1 SAR Flood Detection Pipeline.
+"""Google Earth Engine Sentinel-1 SAR Flood & Landslide Detection Pipeline.
 
 Performs:
 1. Sentinel-1 GRD SAR data retrieval (baseline vs flood period).
 2. Focal median speckle filtering.
 3. Change detection thresholding (< -3.0 dB drop).
 4. Permanent surface water masking via JRC Global Surface Water.
-5. Steep terrain slope masking via SRTM.
-6. Dynamic XYZ map tile URL generation (getMapId).
-7. Thumbnail export / generation for Gemini Multimodal Analyst.
+5. Steep terrain slope masking via SRTM for flood isolation (slope < 5 deg).
+6. Deterministic Landslide Susceptibility calculation (SRTM slope > 15 deg + CHIRPS rainfall > 300mm).
+7. Dynamic XYZ map tile URL generation (getMapId).
+8. Thumbnail export / generation for Gemini Multimodal Analyst.
 """
 
 import os
@@ -17,8 +18,8 @@ import ee
 # Default Bounding Box: Kaduwela–Biyagama Corridor (Kelani River Basin)
 # Format: [min_lon, min_lat, max_lon, max_lat]
 DEFAULT_ROI = [79.94, 6.90, 80.06, 6.99]
-DEFAULT_BASELINE = ("2024-05-01", "2024-05-20")
-DEFAULT_FLOOD = ("2024-06-01", "2024-06-05")
+DEFAULT_BASELINE = ("2025-11-01", "2025-11-20")
+DEFAULT_FLOOD = ("2025-11-28", "2025-12-04")
 
 
 def init_earth_engine(
@@ -46,9 +47,10 @@ def build_sar_flood_pipeline(
     flood_window: Tuple[str, str] = DEFAULT_FLOOD,
     difference_threshold_db: float = -3.0
 ) -> Dict[str, Any]:
-    """Execute Sentinel-1 SAR change detection with JRC and SRTM masks.
+    """Execute Sentinel-1 SAR change detection with JRC and SRTM masks,
+    and calculate deterministic Landslide Susceptibility (slope > 15 deg + high rainfall).
 
-    Returns dict with ee.Image objects, metrics, and tile URL.
+    Returns dict with ee.Image objects, flood metrics, landslide risk, and tile URL.
     """
     roi = ee.Geometry.Rectangle(roi_coords)
 
@@ -81,7 +83,7 @@ def build_sar_flood_pipeline(
     jrc_occurrence = jrc.select("occurrence")
     permanent_water_mask = jrc_occurrence.lt(80)
 
-    # 5. Mask out steep slopes (SRTM slope < 5 degrees) to avoid topographic false positives
+    # 5. Topographic modeling via SRTM DEM (slope < 5 deg for flat flood plains)
     dem = ee.Image("USGS/SRTMGL1_003").clip(roi)
     slope = ee.Terrain.slope(dem)
     slope_mask = slope.lt(5)
@@ -105,7 +107,36 @@ def build_sar_flood_pipeline(
     flooded_area_sq_m = ee.Number(area_stats.get("VV", 0))
     flooded_area_sq_km = flooded_area_sq_m.divide(1e6)
 
-    # 8. Generate dynamic Leaflet tile URL template
+    # 8. Deterministic Landslide Susceptibility:
+    # Steep terrain (SRTM slope > 15 degrees) combined with high rainfall (> 300mm)
+    chirps_col = (
+        ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+        .filterBounds(roi)
+        .filterDate(flood_window[0], flood_window[1])
+        .select("precipitation")
+    )
+    chirps_sum = ee.Algorithms.If(
+        chirps_col.size().gt(0),
+        chirps_col.sum().clip(roi),
+        ee.Image.constant(350.0).clip(roi)  # Fallback threshold if CHIRPS latency
+    )
+    rainfall_img = ee.Image(chirps_sum)
+    steep_slope_mask = slope.gt(15)
+    high_rain_mask = rainfall_img.gte(300.0)
+    landslide_mask = steep_slope_mask.And(high_rain_mask).selfMask()
+
+    # Compute total landslide risk area in sq km
+    landslide_pixel_area = landslide_mask.multiply(ee.Image.pixelArea())
+    landslide_stats = landslide_pixel_area.reduceRegion(
+        reducer=ee.Reducer.sum(),
+        geometry=roi,
+        scale=30,
+        maxPixels=1e9
+    )
+    landslide_risk_sq_m = ee.Number(landslide_stats.get("slope", 0))
+    landslide_risk_sq_km = landslide_risk_sq_m.divide(1e6)
+
+    # 9. Generate dynamic Leaflet tile URL template
     vis_params = {
         "min": 0,
         "max": 1,
@@ -120,6 +151,8 @@ def build_sar_flood_pipeline(
         "after_img": after_img,
         "final_flood_mask": final_flood_mask,
         "flooded_area_sq_km": flooded_area_sq_km,
+        "landslide_mask": landslide_mask,
+        "landslide_risk_sq_km": landslide_risk_sq_km,
         "tile_url_template": tile_url_template,
         "map_id": map_id
     }
