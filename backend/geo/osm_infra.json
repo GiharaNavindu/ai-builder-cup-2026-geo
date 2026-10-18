@@ -1,0 +1,88 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "OSM-WAY-109482",
+      "properties": {
+        "asset_id": "OSM-WAY-109482",
+        "name": "Kaduwela Bridge Approach (AB10 Highway)",
+        "asset_type": "primary_highway",
+        "highway": "primary",
+        "ref": "AB10",
+        "submerged_length_m": 850.0,
+        "is_flooded": true,
+        "cascading_impact": "Severs primary ambulance & medical supply corridor to Biyagama Divisional Hospital"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [79.9815, 6.9340],
+          [79.9828, 6.9348],
+          [79.9842, 6.9358],
+          [79.9860, 6.9372],
+          [79.9875, 6.9385]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "OSM-WAY-E02-BYPASS",
+      "properties": {
+        "asset_id": "OSM-WAY-E02-BYPASS",
+        "name": "Southern Expressway (E02) High-Ground Bypass",
+        "asset_type": "expressway_bypass",
+        "highway": "motorway",
+        "ref": "E02",
+        "submerged_length_m": 0.0,
+        "is_flooded": false,
+        "cascading_impact": "Viable elevated bypass corridor for medical oxygen and emergency supply convoys"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [79.9650, 6.9200],
+          [79.9750, 6.9250],
+          [79.9850, 6.9300],
+          [79.9950, 6.9450],
+          [80.0050, 6.9550]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "OSM-NODE-883921",
+      "properties": {
+        "asset_id": "OSM-NODE-883921",
+        "name": "Biyagama 132kV Grid Substation Perimeter",
+        "asset_type": "power_substation",
+        "power": "substation",
+        "voltage": "132000",
+        "distance_to_flood_m": 115.0,
+        "status": "IMMINENT_THREAT",
+        "cascading_impact": "Inundation threatens power supply to 3 water pumping stations and Biyagama Hospital"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.9915, 6.9482]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "OSM-NODE-HOSP-01",
+      "properties": {
+        "asset_id": "OSM-NODE-HOSP-01",
+        "name": "Biyagama Divisional Hospital",
+        "asset_type": "hospital",
+        "amenity": "hospital",
+        "severed_access_routes": 2,
+        "remaining_viable_routes": 1,
+        "status": "CRITICAL_ACCESS_RESTRICTED"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [80.0012, 6.9431]
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "risk_level": "CRITICAL",
+  "executive_summary": "Catastrophic category-3 equivalent Cyclone Ditwah made landfall along the Eastern coast, triggering widespread storm surges and torrential inland flooding across 125.4 sq km with 450.0mm of 72h rainfall (+320% anomaly). 210.5 km of arterial highway networks are submerged, severely isolating Batticaloa and cutting off critical access to referral hospitals.",
+  "visual_sar_verification": "Sentinel-1 VV backscatter anomalies (< -3.5 dB) confirm deep standing floodwater across coastal lagoons, river mouths, and low-lying alluvial plains along the A4 and A11 corridors.",
+  "prioritized_chokepoints": [
+    {
+      "asset_id": "OSM-WAY-A4-BATTICALOA",
+      "asset_name": "A4 Highway (Batticaloa – Chenkalady Causeway)",
+      "coordinates": [
+        7.7102,
+        81.6924
+      ],
+      "vulnerability_reason": "1,450m causeway segment submerged; cuts off primary medical and ambulance access to Batticaloa Teaching Hospital.",
+      "cited_metric": "submerged_length_m: 1450"
+    },
+    {
+      "asset_id": "OSM-WAY-A11-VALAICHCHENAI",
+      "asset_name": "A11 Highway (Polonnaruwa – Valaichchenai Link)",
+      "coordinates": [
+        7.925,
+        81.535
+      ],
+      "vulnerability_reason": "2,200m section submerged; severs primary relief convoy corridor from Central Province.",
+      "cited_metric": "submerged_length_m: 2200"
+    },
+    {
+      "asset_id": "OSM-NODE-VALAICHCHENAI-SUB",
+      "asset_name": "Valaichchenai 132kV Grid Substation",
+      "coordinates": [
+        7.918,
+        81.542
+      ],
+      "vulnerability_reason": "Flood perimeter is within 85m of perimeter fence; threatens power distribution to 4 regional water treatment facilities.",
+      "cited_metric": "distance_to_flood_m: 85"
+    }
+  ],
+  "supply_reroutes": [
+    {
+      "blocked_corridor": "A4 Coastal Causeway (Chenkalady – Batticaloa)",
+      "recommended_bypass": "A5 Highway inland high-ground route via Bibile and Padiyatalawa",
+      "estimated_delay_mins": 65,
+      "target_fleet": "Emergency Medical Supplies & Heavy Relief Trucks"
+    }
+  ],
+  "pubsub_dispatches": [
+    {
+      "topic": "infra-grid-substation-alerts",
+      "recipient": "CEB Transmission Operations / Eastern Control",
+      "urgency": "CRITICAL_IMMEDIATE",
+      "directive": "Pre-stage emergency sandbag dikes at Valaichchenai 132kV Substation (water edge at 85m) and activate remote feeder shedding."
+    },
+    {
+      "topic": "infra-logistics-corridor-reroute",
+      "recipient": "Disaster Management Centre (DMC) Logistics Cell",
+      "urgency": "HIGH_0_4H",
+      "directive": "Divert all emergency relief convoys bound for Batticaloa to inland A5 corridor; coordinate Sri Lanka Navy boat transfers."
+    }
+  ],
+  "confidence_score": 0.94,
+  "limitations": "High SAR orbital latency in cyclone rainbands; cloud attenuation compensated via Sentinel-1 C-band synthetic aperture radar."
+}
