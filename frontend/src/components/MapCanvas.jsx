@@ -6,7 +6,8 @@ import {
   Polygon,
   Marker,
   Popup,
-  useMap
+  Circle,
+  useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import {
@@ -16,12 +17,14 @@ import {
   Zap,
   Activity,
   Compass,
-  Eye,
-  Navigation
+  Navigation,
+  Globe,
+  Mountain,
+  HeartPulse,
+  Flame,
 } from "lucide-react";
-import { MAP_GEOJSON_FEATURES } from "../data/telemetryData";
 
-// Fix for default Leaflet icon paths in Vite / React
+// Fix Leaflet marker icon asset paths
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -29,157 +32,203 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Custom HTML Pulsing Beacon Icons
-const createPulsingIcon = (type = "danger") => {
-  const isDanger = type === "danger";
-  const isWarning = type === "warning";
-  const isHospital = type === "hospital";
+// Zone coordinate anchors & default zoom levels
+const ZONE_ANCHORS = {
+  sri_lanka_national: { center: [7.8731, 80.7718], zoom: 8, title: "Sri Lanka Island-Wide Overview" },
+  central_kandy: { center: [7.2500, 80.5800], zoom: 11, title: "Central Highlands & Mahaweli Basin" },
+  western_kelani: { center: [6.9800, 79.9600], zoom: 11, title: "Western Province & Kelani Basin" },
+  eastern_northern: { center: [8.2000, 81.3000], zoom: 9, title: "Eastern & Northern Coastal Zone" },
+};
 
-  const coreClass = isHospital
-    ? "marker-core-hospital"
-    : isDanger
-    ? "marker-core-danger"
-    : "marker-core-warning";
+// Dynamic Marker Icons by Multi-Hazard Type
+const createMultiHazardIcon = (hazardType = "FLOOD_INUNDATION") => {
+  let coreClass = "marker-core-danger";
+  let pingColor = "#f43f5e";
+  let symbol = "";
 
-  const pingHtml = isHospital
-    ? ""
-    : `<div class="radar-ping" style="border-color: ${isDanger ? "#f43f5e" : "#f59e0b"};"></div>`;
+  if (hazardType === "LANDSLIDE_BLOCKAGE") {
+    coreClass = "marker-core-landslide";
+    pingColor = "#f59e0b";
+    symbol = "▲";
+  } else if (hazardType === "BRIDGE_COLLAPSE") {
+    coreClass = "marker-core-bridge";
+    pingColor = "#a855f7";
+    symbol = "✕";
+  } else if (hazardType === "HOSPITAL") {
+    coreClass = "marker-core-hospital";
+    pingColor = "#3b82f6";
+    symbol = "H";
+  }
 
-  const innerText = isHospital ? "H" : "";
+  const pingHtml =
+    hazardType === "HOSPITAL"
+      ? ""
+      : `<div class="radar-ping" style="border-color: ${pingColor};"></div>`;
 
   return L.divIcon({
     className: "custom-pulsing-marker",
     html: `
-      <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+      <div style="position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
         ${pingHtml}
-        <div class="${coreClass}">${innerText}</div>
+        <div class="${coreClass}">${symbol}</div>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -13],
   });
 };
 
-// Component to handle programmatic map pan/zoom (flyTo)
-function MapPanController({ targetCoords, zoom = 15 }) {
+// Map Pan Controller for Zone Transitions and Citation Clicks
+function MapFlyController({ activeZone, targetCoords }) {
   const map = useMap();
 
+  // Fly to zone center when user changes the active zone
+  useEffect(() => {
+    const anchor = ZONE_ANCHORS[activeZone] || ZONE_ANCHORS.central_kandy;
+    map.flyTo(anchor.center, anchor.zoom, {
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+  }, [activeZone, map]);
+
+  // Fly to specific chokepoint coordinates when citation is clicked
   useEffect(() => {
     if (targetCoords && targetCoords.length === 2) {
-      map.flyTo(targetCoords, zoom, {
-        duration: 1.5,
+      map.flyTo(targetCoords, 14, {
+        duration: 1.2,
         easeLinearity: 0.25,
       });
     }
-  }, [targetCoords, zoom, map]);
+  }, [targetCoords, map]);
 
   return null;
 }
 
 export default function MapCanvas({
+  liveTelemetry,
+  livePlaybook,
+  activeZone = "central_kandy",
+  activeMode = "ditwah_2025",
   selectedChokepointCoords,
   onMarkerSelect,
-  floodTileUrl,
+  rainfallMultiplier = 1.0,
+  onRainfallChange,
 }) {
-  const initialCenter = [6.940, 79.988];
-  const [activePan, setActivePan] = useState(null);
+  const currentAnchor = ZONE_ANCHORS[activeZone] || ZONE_ANCHORS.central_kandy;
   const [sarOpacity, setSarOpacity] = useState(0.85);
   const [showFloodMask, setShowFloodMask] = useState(true);
   const [showInfrastructure, setShowInfrastructure] = useState(true);
   const [showBypassRoutes, setShowBypassRoutes] = useState(true);
 
-  // Synchronize target pan if passed from parent (e.g. from Gihara's citation cards)
-  useEffect(() => {
-    if (selectedChokepointCoords) {
-      setActivePan(selectedChokepointCoords);
-    }
-  }, [selectedChokepointCoords]);
-
-  // Extract layers from GeoJSON
-  const floodedRoads = MAP_GEOJSON_FEATURES.features.filter(
-    (f) => f.properties.type === "flooded_highway"
-  );
-  const bypassRoutes = MAP_GEOJSON_FEATURES.features.filter(
-    (f) => f.properties.type === "recommended_bypass"
-  );
-  const floodPolygons = MAP_GEOJSON_FEATURES.features.filter(
-    (f) => f.properties.type === "flood_extent"
-  );
+  const chokepoints = liveTelemetry?.bigquery_gis_impacts?.chokepoints || [];
+  const hospitals = liveTelemetry?.bigquery_gis_impacts?.hospitals_at_risk || [];
+  const tileUrl = liveTelemetry?.visual_artifacts?.ee_flood_tile_url;
 
   return (
     <div className="map-canvas-container">
-      {/* Floating HUD: Location & Quick-Pan Navigation */}
+      {/* Floating HUD: Top Left Theater & Quick-Pan Buttons */}
       <div className="map-hud-top-left">
         <div className="hud-card">
           <div className="hud-title-row">
             <div className="hud-title">
               <Compass size={18} color="#06b6d4" />
-              Kelani River Basin
+              {currentAnchor.title}
             </div>
-            <span className="brand-badge">S-1 SAR ACTIVE</span>
+            <span
+              className="brand-badge"
+              style={
+                activeMode === "ditwah_2025"
+                  ? { color: "#f43f5e", borderColor: "rgba(244, 63, 94, 0.4)", background: "rgba(244, 63, 94, 0.15)" }
+                  : { color: "#10b981", borderColor: "rgba(16, 185, 129, 0.4)", background: "rgba(16, 185, 129, 0.15)" }
+              }
+            >
+              {activeMode === "ditwah_2025" ? "DITWAH 2025 REPLAY" : "LIVE SENTINEL-1 FEED"}
+            </span>
           </div>
           <div className="hud-subtitle">
-            Kaduwela – Biyagama Corridor • 6.94° N, 79.99° E
+            Zone: {activeZone} • Rain Surge: +{Math.round((rainfallMultiplier - 1.0) * 100)}%
           </div>
 
+          {/* Quick-Pan Buttons for Assets in Current Zone */}
           <div className="quick-pan-bar">
-            <button
-              className="pan-btn"
-              onClick={() => setActivePan([6.9358, 79.9842])}
-            >
-              <AlertTriangle size={13} color="#f43f5e" />
-              AB10 Bridge
-            </button>
-            <button
-              className="pan-btn"
-              onClick={() => setActivePan([6.9482, 79.9915])}
-            >
-              <Zap size={13} color="#f59e0b" />
-              132kV Substation
-            </button>
-            <button
-              className="pan-btn"
-              onClick={() => setActivePan([6.9431, 80.0012])}
-            >
-              <Activity size={13} color="#3b82f6" />
-              Hospital
-            </button>
-            <button
-              className="pan-btn"
-              onClick={() => setActivePan([6.940, 79.988])}
-            >
-              Overview
-            </button>
+            {chokepoints.slice(0, 3).map((cp, idx) => (
+              <button
+                key={idx}
+                className="pan-btn"
+                onClick={() => onMarkerSelect && onMarkerSelect(cp.asset_id)}
+                title={cp.name}
+              >
+                {cp.hazard_type === "LANDSLIDE_BLOCKAGE" ? (
+                  <Mountain size={11} color="#f59e0b" />
+                ) : cp.hazard_type === "BRIDGE_COLLAPSE" ? (
+                  <AlertTriangle size={11} color="#a855f7" />
+                ) : (
+                  <Zap size={11} color="#f43f5e" />
+                )}
+                {cp.name.split(" ")[0]}...
+              </button>
+            ))}
+            {hospitals.slice(0, 1).map((hosp, idx) => (
+              <button
+                key={`h-${idx}`}
+                className="pan-btn"
+                onClick={() => onMarkerSelect && onMarkerSelect(`HOSP-${idx}`)}
+                title={hosp.name}
+              >
+                <HeartPulse size={11} color="#3b82f6" />
+                {hosp.name.split(" ")[0]}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Floating HUD: Bottom SAR Radar Opacity & Layer Dock */}
+      {/* Floating HUD: Bottom Dock with Surge Slider & Layer Controls */}
       <div className="map-hud-bottom">
+        {/* What-If Rainfall Surge Simulator Slider */}
+        <div className="slider-group surge-slider-group">
+          <span className="slider-label" style={{ color: "#f59e0b" }}>
+            <Flame size={14} color="#f59e0b" />
+            Surge Simulator: +{Math.round((rainfallMultiplier - 1.0) * 100)}%
+          </span>
+          <input
+            type="range"
+            min="1.0"
+            max="1.5"
+            step="0.05"
+            value={rainfallMultiplier}
+            onChange={(e) => onRainfallChange && onRainfallChange(parseFloat(e.target.value))}
+            className="sar-slider surge-slider"
+            title="Simulate worsening monsoon rainfall surge (100% to 150%)"
+          />
+        </div>
+
+        {/* SAR Radar Opacity */}
         <div className="slider-group">
           <span className="slider-label">
-            <Sliders size={14} color="#06b6d4" />
+            <Sliders size={13} color="#06b6d4" />
             SAR Opacity: {Math.round(sarOpacity * 100)}%
           </span>
           <input
             type="range"
-            min="0"
-            max="1"
+            min="0.1"
+            max="1.0"
             step="0.05"
             value={sarOpacity}
             onChange={(e) => setSarOpacity(parseFloat(e.target.value))}
             className="sar-slider"
-            title="Slide to compare Baseline SAR vs Flood Inundation"
+            title="Adjust radar flood layer opacity"
           />
         </div>
 
+        {/* Layer Toggles */}
         <button
           className={`layer-toggle-btn ${showFloodMask ? "active" : ""}`}
           onClick={() => setShowFloodMask(!showFloodMask)}
         >
           <Layers size={13} />
-          Flood Inundation
+          Flood Mask
         </button>
 
         <button
@@ -187,7 +236,7 @@ export default function MapCanvas({
           onClick={() => setShowInfrastructure(!showInfrastructure)}
         >
           <Zap size={13} />
-          Threatened Assets
+          Chokepoints
         </button>
 
         <button
@@ -195,158 +244,156 @@ export default function MapCanvas({
           onClick={() => setShowBypassRoutes(!showBypassRoutes)}
         >
           <Navigation size={13} />
-          E02 Bypass
+          Bypass Routes
         </button>
       </div>
 
       {/* Leaflet Map Engine */}
       <MapContainer
-        center={initialCenter}
-        zoom={13}
+        center={currentAnchor.center}
+        zoom={currentAnchor.zoom}
         zoomControl={false}
         className="leaflet-map-wrapper"
       >
-        <MapPanController targetCoords={activePan} zoom={14} />
+        <MapFlyController activeZone={activeZone} targetCoords={selectedChokepointCoords} />
 
-        {/* High-Contrast Dark Basemap (Zero API Key Required) */}
+        {/* Dark High-Contrast Basemap */}
         <TileLayer
-          attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap contributors'
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
           maxZoom={16}
         />
 
-        {/* Sentinel-1 SAR Flood Inundation Tile Layer / Mask */}
-        {showFloodMask && floodPolygons.map((poly, idx) => (
-          <Polygon
-            key={`flood-${idx}`}
-            positions={poly.geometry.coordinates[0].map(([lon, lat]) => [lat, lon])}
-            pathOptions={{
-              color: "#00b4d8",
-              weight: 1.5,
-              fillColor: "#0284c7",
-              fillOpacity: sarOpacity * 0.45,
-            }}
-          >
-            <Popup>
-              <div className="popup-card">
-                <div className="popup-title">Sentinel-1 SAR Flood Extent</div>
-                <div className="popup-badge badge-warning">Change Detection Δ &lt; -3 dB</div>
-                <div className="popup-detail">
-                  Inundated Area: <strong>18.4 sq km</strong><br />
-                  Permanent water and steep terrain masked.
-                </div>
-              </div>
-            </Popup>
-          </Polygon>
-        ))}
-
-        {/* Flooded Highway Segments (Glowing Red/Rose) */}
-        {showInfrastructure && floodedRoads.map((road) => (
-          <Polyline
-            key={road.id}
-            positions={road.geometry.coordinates.map(([lon, lat]) => [lat, lon])}
-            pathOptions={{
-              color: "#f43f5e",
-              weight: 5,
-              opacity: 0.95,
-              dashArray: "6, 6",
-            }}
-          >
-            <Popup>
-              <div className="popup-card">
-                <div className="popup-title">{road.properties.name}</div>
-                <div className="popup-badge badge-danger">SUBMERGED 850m</div>
-                <div className="popup-detail">
-                  Primary highway connection severed. Ambulances cannot cross the Kelani Bridge approach.
-                </div>
-              </div>
-            </Popup>
-          </Polyline>
-        ))}
-
-        {/* AI-Recommended Bypass Corridor (Glowing Emerald Green) */}
-        {showBypassRoutes && bypassRoutes.map((route) => (
-          <Polyline
-            key={route.id}
-            positions={route.geometry.coordinates.map(([lon, lat]) => [lat, lon])}
-            pathOptions={{
-              color: "#10b981",
-              weight: 4,
-              opacity: 0.9,
-            }}
-          >
-            <Popup>
-              <div className="popup-card">
-                <div className="popup-title">{route.properties.name}</div>
-                <div className="popup-badge badge-warning" style={{ color: "#10b981", borderColor: "#10b981" }}>
-                  HIGH-GROUND BYPASS (+18m)
-                </div>
-                <div className="popup-detail">
-                  Recommended detour for medical supplies and food logistics via Kothalawala interchange.
-                </div>
-              </div>
-            </Popup>
-          </Polyline>
-        ))}
-
-        {/* Pulsing Infrastructure Markers */}
-        {showInfrastructure && (
-          <>
-            {/* AB10 Highway Chokepoint */}
-            <Marker
-              position={[6.9358, 79.9842]}
-              icon={createPulsingIcon("danger")}
-              eventHandlers={{
-                click: () => onMarkerSelect && onMarkerSelect("OSM-WAY-109482"),
-              }}
-            >
-              <Popup>
-                <div className="popup-card">
-                  <div className="popup-title">AB10 Kaduwela Bridge Approach</div>
-                  <div className="popup-badge badge-danger">CRITICAL CHOKEPOINT</div>
-                  <div className="popup-detail">
-                    <strong>850m submerged</strong>. Severs primary ambulance corridor to Biyagama Divisional Hospital.
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-
-            {/* Biyagama 132kV Substation */}
-            <Marker
-              position={[6.9482, 79.9915]}
-              icon={createPulsingIcon("warning")}
-              eventHandlers={{
-                click: () => onMarkerSelect && onMarkerSelect("OSM-NODE-883921"),
-              }}
-            >
-              <Popup>
-                <div className="popup-card">
-                  <div className="popup-title">Biyagama 132kV Grid Substation</div>
-                  <div className="popup-badge badge-warning">PROXIMITY ALERT (115m)</div>
-                  <div className="popup-detail">
-                    Flood edge is 115m from perimeter. Threatens power supply to 3 water pumping stations and hospital.
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-
-            {/* Biyagama Divisional Hospital */}
-            <Marker
-              position={[6.9431, 80.0012]}
-              icon={createPulsingIcon("hospital")}
-            >
-              <Popup>
-                <div className="popup-card">
-                  <div className="popup-title">Biyagama Divisional Hospital</div>
-                  <div className="popup-badge badge-danger">ACCESS THREATENED</div>
-                  <div className="popup-detail">
-                    2 access roads inundated; 1 high-ground route remaining viable.
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          </>
+        {/* Dynamic Earth Engine Flood Tile Layer if available */}
+        {showFloodMask && tileUrl && (
+          <TileLayer url={tileUrl} opacity={sarOpacity} maxZoom={16} />
         )}
+
+        {/* Multi-Hazard Infrastructure Chokepoints */}
+        {showInfrastructure &&
+          chokepoints.map((cp, idx) => (
+            <React.Fragment key={`cp-${idx}`}>
+              {/* Highlight Circle for Submerged Road Radius */}
+              {showFloodMask && cp.submerged_length_m && (
+                <Circle
+                  center={cp.coordinates}
+                  radius={Math.min(cp.submerged_length_m, 2000)}
+                  pathOptions={{
+                    color: cp.hazard_type === "LANDSLIDE_BLOCKAGE" ? "#f59e0b" : "#f43f5e",
+                    fillColor: cp.hazard_type === "LANDSLIDE_BLOCKAGE" ? "#d97706" : "#0284c7",
+                    fillOpacity: sarOpacity * 0.35,
+                    weight: 1.5,
+                  }}
+                />
+              )}
+
+              {/* Pulsing Beacon Marker */}
+              <Marker
+                position={cp.coordinates}
+                icon={createMultiHazardIcon(cp.hazard_type)}
+                eventHandlers={{
+                  click: () => onMarkerSelect && onMarkerSelect(cp.asset_id),
+                }}
+              >
+                <Popup>
+                  <div className="popup-card">
+                    <div className="popup-title">{cp.name}</div>
+                    <div
+                      className="popup-badge"
+                      style={
+                        cp.hazard_type === "LANDSLIDE_BLOCKAGE"
+                          ? { background: "rgba(245, 158, 11, 0.2)", color: "#f59e0b", borderColor: "rgba(245, 158, 11, 0.4)" }
+                          : cp.hazard_type === "BRIDGE_COLLAPSE"
+                          ? { background: "rgba(168, 85, 247, 0.2)", color: "#a855f7", borderColor: "rgba(168, 85, 247, 0.4)" }
+                          : { background: "rgba(244, 63, 94, 0.2)", color: "#f43f5e", borderColor: "rgba(244, 63, 94, 0.4)" }
+                      }
+                    >
+                      {cp.hazard_type.replace("_", " ")}
+                    </div>
+                    <div className="popup-detail">
+                      <strong>Impact:</strong> {cp.cascading_impact}
+                      <br />
+                      {cp.submerged_length_m && (
+                        <span><strong>Submerged:</strong> {cp.submerged_length_m} meters<br /></span>
+                      )}
+                      {cp.distance_to_flood_m !== null && cp.distance_to_flood_m !== undefined && (
+                        <span><strong>Flood Proximity:</strong> {cp.distance_to_flood_m}m from boundary<br /></span>
+                      )}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--accent-cyan)" }}>
+                        Coords: {cp.coordinates[0].toFixed(4)}°N, {cp.coordinates[1].toFixed(4)}°E
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                      <a
+                        href={`https://www.google.com/maps?q=${cp.coordinates[0]},${cp.coordinates[1]}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-gmaps"
+                      >
+                        <Globe size={12} /> Open in Google Maps / Street View
+                      </a>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            </React.Fragment>
+          ))}
+
+        {/* Healthcare Facilities at Risk */}
+        {showInfrastructure &&
+          hospitals.map((hosp, idx) => (
+            <Marker
+              key={`hosp-${idx}`}
+              position={hosp.coordinates}
+              icon={createMultiHazardIcon("HOSPITAL")}
+              eventHandlers={{
+                click: () => onMarkerSelect && onMarkerSelect(`HOSP-${idx}`),
+              }}
+            >
+              <Popup>
+                <div className="popup-card">
+                  <div className="popup-title">{hosp.name}</div>
+                  <div
+                    className="popup-badge"
+                    style={
+                      hosp.remaining_viable_routes === 0
+                        ? { background: "rgba(244, 63, 94, 0.25)", color: "#f43f5e", borderColor: "#f43f5e", fontWeight: "700" }
+                        : { background: "rgba(16, 185, 129, 0.2)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.4)" }
+                    }
+                  >
+                    {hosp.remaining_viable_routes === 0
+                      ? "🚨 0 VIABLE ROUTES - AIRLIFT MANDATORY"
+                      : `${hosp.remaining_viable_routes} VIABLE ROUTE(S)`}
+                  </div>
+                  <div className="popup-detail">
+                    <strong>Severed Routes:</strong> {hosp.severed_access_routes} access corridor(s) flooded.
+                    <br />
+                    {hosp.remaining_viable_routes === 0 ? (
+                      <span style={{ color: "#f43f5e", fontWeight: "600" }}>
+                        Ground access completely impassable. Rotary-wing airforce airlift dispatched.
+                      </span>
+                    ) : (
+                      <span style={{ color: "#10b981" }}>
+                        Ambulance access operational via high-ground bypass.
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    <a
+                      href={`https://www.google.com/maps?q=${hosp.coordinates[0]},${hosp.coordinates[1]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-gmaps"
+                    >
+                      <Globe size={12} /> Open in Google Maps / Street View
+                    </a>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
       </MapContainer>
     </div>
   );
