@@ -42,26 +42,27 @@ const ZONE_ANCHORS = {
 
 // Dynamic Marker Icons by Multi-Hazard Type
 const createMultiHazardIcon = (hazardType = "FLOOD_INUNDATION") => {
+  const type = hazardType || "FLOOD_INUNDATION";
   let coreClass = "marker-core-danger";
   let pingColor = "#f43f5e";
   let symbol = "";
 
-  if (hazardType === "LANDSLIDE_BLOCKAGE") {
+  if (type === "LANDSLIDE_BLOCKAGE") {
     coreClass = "marker-core-landslide";
     pingColor = "#f59e0b";
     symbol = "▲";
-  } else if (hazardType === "BRIDGE_COLLAPSE") {
+  } else if (type === "BRIDGE_COLLAPSE") {
     coreClass = "marker-core-bridge";
     pingColor = "#a855f7";
     symbol = "✕";
-  } else if (hazardType === "HOSPITAL") {
+  } else if (type === "HOSPITAL") {
     coreClass = "marker-core-hospital";
     pingColor = "#3b82f6";
     symbol = "H";
   }
 
   const pingHtml =
-    hazardType === "HOSPITAL"
+    type === "HOSPITAL"
       ? ""
       : `<div class="radar-ping" style="border-color: ${pingColor};"></div>`;
 
@@ -166,7 +167,7 @@ export default function MapCanvas({
                 ) : (
                   <Zap size={11} color="#f43f5e" />
                 )}
-                {cp.name.split(" ")[0]}...
+                {(cp.name || "Chokepoint").split(" ")[0]}...
               </button>
             ))}
             {hospitals.slice(0, 1).map((hosp, idx) => (
@@ -177,7 +178,7 @@ export default function MapCanvas({
                 title={hosp.name}
               >
                 <HeartPulse size={11} color="#3b82f6" />
-                {hosp.name.split(" ")[0]}
+                {(hosp.name || "Hospital").split(" ")[0]}
               </button>
             ))}
           </div>
@@ -308,7 +309,7 @@ export default function MapCanvas({
                           : { background: "rgba(244, 63, 94, 0.2)", color: "#f43f5e", borderColor: "rgba(244, 63, 94, 0.4)" }
                       }
                     >
-                      {cp.hazard_type.replace("_", " ")}
+                      {(cp.hazard_type || "FLOOD_INUNDATION").replace("_", " ")}
                     </div>
                     <div className="popup-detail">
                       <strong>Impact:</strong> {cp.cascading_impact}

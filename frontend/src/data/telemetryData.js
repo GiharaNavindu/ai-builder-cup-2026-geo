@@ -19,6 +19,7 @@ export const KELANI_TELEMETRY = {
         "asset_id": "OSM-WAY-A4-BATTICALOA",
         "name": "A4 Highway (Batticaloa – Chenkalady Causeway)",
         "asset_type": "primary_highway",
+        "hazard_type": "FLOOD_INUNDATION",
         "coordinates": [
           7.7102,
           81.6924
@@ -31,6 +32,7 @@ export const KELANI_TELEMETRY = {
         "asset_id": "OSM-WAY-A11-VALAICHCHENAI",
         "name": "A11 Highway (Polonnaruwa – Valaichchenai Link)",
         "asset_type": "primary_highway",
+        "hazard_type": "FLOOD_INUNDATION",
         "coordinates": [
           7.925,
           81.535
@@ -43,6 +45,7 @@ export const KELANI_TELEMETRY = {
         "asset_id": "OSM-NODE-VALAICHCHENAI-SUB",
         "name": "Valaichchenai 132kV Grid Substation",
         "asset_type": "power_substation",
+        "hazard_type": "FLOOD_INUNDATION",
         "coordinates": [
           7.918,
           81.542
